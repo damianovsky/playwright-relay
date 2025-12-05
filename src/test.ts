@@ -87,6 +87,16 @@ export const test = base.extend<RelayFixtures>({
       resultStore.initialize({ persistCache: true, cacheFilePath: relayConfig.cacheFilePath });
     }
     
+    // Auto-set namespace based on baseURL to isolate data between different environments
+    // This prevents tests running against different servers from overwriting each other's results
+    if (!resultStore.getNamespace()) {
+      const baseURL = testInfo.project?.use?.baseURL;
+      if (baseURL) {
+        // Use baseURL as namespace (e.g., "https://api.server1.com" -> "https://api.server1.com")
+        resultStore.setNamespace(baseURL);
+      }
+    }
+    
     // beforeEach: mark test as running
     resultStore.set(testKey, 'running');
     resultStore.set(testInfo.title, 'running');

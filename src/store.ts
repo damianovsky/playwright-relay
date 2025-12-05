@@ -39,6 +39,7 @@ class ResultStore {
   private sharedStorePath: string;
   private hooks?: LifecycleHooks;
   private initialized = false;
+  private currentNamespace: string | null = null;
 
   constructor(enableSharedStore = false, customPath?: string) {
     this.sharedStorePath = customPath ?? ENV_STORE_PATH ?? DEFAULT_SHARED_STORE_PATH;
@@ -103,6 +104,30 @@ class ResultStore {
   }
 
   /**
+   * Set the current namespace for isolating test results.
+   * Keys will be automatically prefixed with the namespace.
+   */
+  setNamespace(namespace: string | null): void {
+    this.currentNamespace = namespace;
+  }
+
+  /**
+   * Get the current namespace
+   */
+  getNamespace(): string | null {
+    return this.currentNamespace;
+  }
+
+  /**
+   * Get the namespaced key. If namespace is set, prefixes the key.
+   */
+  private getNamespacedKey(key: string): string {
+    if (!this.currentNamespace) return key;
+    if (key.startsWith(`${this.currentNamespace}::`)) return key;
+    return `${this.currentNamespace}::${key}`;
+  }
+
+  /**
    * Set lifecycle hooks
    */
   setHooks(hooks: LifecycleHooks): void {
@@ -121,7 +146,12 @@ class ResultStore {
   }
 
   set<T>(key: string, status: TestStatus, data?: T, error?: Error): void {
-    this.results.set(key, { status, data, error, timestamp: Date.now() });
+    const nsKey = this.getNamespacedKey(key);
+    this.results.set(nsKey, { status, data, error, timestamp: Date.now() });
+    // Also store without namespace for backward compatibility within same namespace
+    if (this.currentNamespace && nsKey !== key) {
+      this.results.set(key, { status, data, error, timestamp: Date.now() });
+    }
     // Persist to shared store for cross-process access
     if (this.useSharedStore) {
       this.saveToSharedStore();
@@ -129,35 +159,47 @@ class ResultStore {
   }
 
   get<T>(key: string): TestResult<T> | undefined {
-    // Try local first, then check shared store
-    if (!this.results.has(key) && this.useSharedStore) {
-      this.loadFromSharedStore();
+    const nsKey = this.getNamespacedKey(key);
+    // Try namespaced key first, then original
+    if (this.results.has(nsKey)) {
+      return this.results.get(nsKey) as TestResult<T> | undefined;
     }
-    return this.results.get(key) as TestResult<T> | undefined;
+    if (this.results.has(key)) {
+      return this.results.get(key) as TestResult<T> | undefined;
+    }
+    // Try shared store
+    if (this.useSharedStore) {
+      this.loadFromSharedStore();
+      return (this.results.get(nsKey) ?? this.results.get(key)) as TestResult<T> | undefined;
+    }
+    return undefined;
   }
 
   has(key: string): boolean {
-    if (this.results.has(key)) return true;
+    const nsKey = this.getNamespacedKey(key);
+    if (this.results.has(nsKey) || this.results.has(key)) return true;
     // Check shared store
     if (this.useSharedStore) {
       this.loadFromSharedStore();
-      return this.results.has(key);
+      return this.results.has(nsKey) || this.results.has(key);
     }
     return false;
   }
 
   getStatus(key: string): TestStatus {
-    if (!this.results.has(key) && this.useSharedStore) {
+    const nsKey = this.getNamespacedKey(key);
+    if (!this.results.has(nsKey) && !this.results.has(key) && this.useSharedStore) {
       this.loadFromSharedStore();
     }
-    return this.results.get(key)?.status ?? 'pending';
+    return this.results.get(nsKey)?.status ?? this.results.get(key)?.status ?? 'pending';
   }
 
   getData<T>(key: string): T | undefined {
-    if (!this.results.has(key) && this.useSharedStore) {
+    const nsKey = this.getNamespacedKey(key);
+    if (!this.results.has(nsKey) && !this.results.has(key) && this.useSharedStore) {
       this.loadFromSharedStore();
     }
-    return this.results.get(key)?.data as T | undefined;
+    return (this.results.get(nsKey)?.data ?? this.results.get(key)?.data) as T | undefined;
   }
 
   /**
