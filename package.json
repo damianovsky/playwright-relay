@@ -1,11 +1,14 @@
 {
   "name": "playwright-relay",
-  "version": "1.0.1-beta.6",
+  "version": "1.0.1-beta.7",
   "description": "Pass data between Playwright tests using @depends annotations",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "playwright-relay": "./dist/cli.js"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/damianovsky/playwright-relay"
@@ -32,7 +35,8 @@
     "lint": "eslint src --ext .ts",
     "prepublishOnly": "npm run build",
     "docs:serve": "mkdocs serve",
-    "docs:build": "mkdocs build"
+    "docs:build": "mkdocs build",
+    "graph": "node dist/cli.js graph"
   },
   "keywords": [
     "playwright",
@@ -41,12 +45,16 @@
     "relay",
     "depends",
     "e2e",
-    "api-testing"
+    "api-testing",
+    "dependency-graph"
   ],
   "author": "",
   "license": "MIT",
   "peerDependencies": {
     "@playwright/test": ">=1.30.0"
+  },
+  "dependencies": {
+    "glob": "^10.3.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",

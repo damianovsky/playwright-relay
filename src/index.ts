@@ -79,6 +79,14 @@ export {
   dependencyGraph,
 } from './graph.js';
 
+// Visualization
+export {
+  generateGraph,
+  generateHtmlGraph,
+  buildGraphFromFiles,
+} from './visualize.js';
+export type { GraphOptions, GraphResult } from './visualize.js';
+
 // Store
 export { resultStore, ResultStore } from './store.js';
 export type { StoreInitOptions } from './store.js';

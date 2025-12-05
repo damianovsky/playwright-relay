@@ -40,6 +40,7 @@ nav:
   - Examples:
     - Basic Patterns: examples/basic.md
     - Advanced Patterns: examples/advanced.md
+    - Dependency Graph: examples/graph.md
 
 markdown_extensions:
   - pymdownx.highlight:

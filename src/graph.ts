@@ -134,6 +134,76 @@ export class DependencyGraph {
     this.reverseEdges.clear();
   }
 
+  /**
+   * Generate Mermaid flowchart diagram of the dependency graph
+   * @param direction - Graph direction: 'TB' (top-bottom), 'BT', 'LR' (left-right), 'RL'
+   */
+  toMermaid(direction: 'TB' | 'BT' | 'LR' | 'RL' = 'TB'): string {
+    const lines: string[] = [`flowchart ${direction}`];
+    const nodeIds = new Map<string, string>();
+    
+    // Generate safe node IDs
+    let counter = 0;
+    for (const id of this.nodes.keys()) {
+      nodeIds.set(id, `N${counter++}`);
+    }
+    
+    // Add node definitions with labels
+    for (const [id, info] of this.nodes) {
+      const safeId = nodeIds.get(id)!;
+      const label = this.escapeLabel(info.title);
+      lines.push(`  ${safeId}["${label}"]`);
+    }
+    
+    // Add edges
+    for (const [from, deps] of this.edges) {
+      const fromId = nodeIds.get(from);
+      if (!fromId) continue;
+      
+      for (const to of deps) {
+        const toId = nodeIds.get(to);
+        if (toId) {
+          lines.push(`  ${toId} --> ${fromId}`);
+        }
+      }
+    }
+    
+    return lines.join('\n');
+  }
+
+  /**
+   * Generate ASCII representation of the dependency graph
+   */
+  toAscii(): string {
+    const lines: string[] = [];
+    const sorted = this.topologicalSort();
+    
+    for (const id of sorted) {
+      const info = this.nodes.get(id);
+      if (!info) continue;
+      
+      const deps = this.getDependencies(id);
+      if (deps.length === 0) {
+        lines.push(`○ ${info.title}`);
+      } else {
+        const depTitles = deps
+          .map(d => this.nodes.get(d)?.title ?? d)
+          .join(', ');
+        lines.push(`● ${info.title}`);
+        lines.push(`  └─ depends on: ${depTitles}`);
+      }
+    }
+    
+    return lines.join('\n');
+  }
+
+  private escapeLabel(label: string): string {
+    return label
+      .replace(/"/g, "'")
+      .replace(/\n/g, ' ')
+      .replace(/[<>]/g, '');
+  }
+
   static fromTests(tests: TestInfo[]): DependencyGraph {
     const graph = new DependencyGraph();
 

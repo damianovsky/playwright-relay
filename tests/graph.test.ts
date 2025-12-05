@@ -200,4 +200,67 @@ describe('DependencyGraph', () => {
       expect(graph.getAllTestIds()).toHaveLength(0);
     });
   });
+
+  describe('toMermaid', () => {
+    it('should generate valid Mermaid flowchart', () => {
+      const test1: TestInfo = { id: 'test-1', title: 'Create User', file: 'test.spec.ts', dependencies: [] };
+      const test2: TestInfo = { id: 'test-2', title: 'Update User', file: 'test.spec.ts', dependencies: [] };
+
+      graph.addTest(test1);
+      graph.addTest(test2);
+      graph.addDependency('test-2', 'test-1');
+
+      const mermaid = graph.toMermaid();
+
+      expect(mermaid).toContain('flowchart TB');
+      expect(mermaid).toContain('Create User');
+      expect(mermaid).toContain('Update User');
+      expect(mermaid).toContain('-->');
+    });
+
+    it('should support different directions', () => {
+      const test1: TestInfo = { id: 'test-1', title: 'Test', file: 'test.spec.ts', dependencies: [] };
+      graph.addTest(test1);
+
+      expect(graph.toMermaid('LR')).toContain('flowchart LR');
+      expect(graph.toMermaid('BT')).toContain('flowchart BT');
+      expect(graph.toMermaid('RL')).toContain('flowchart RL');
+    });
+
+    it('should escape special characters in labels', () => {
+      const test1: TestInfo = { id: 'test-1', title: 'Test "with" quotes', file: 'test.spec.ts', dependencies: [] };
+      graph.addTest(test1);
+
+      const mermaid = graph.toMermaid();
+
+      expect(mermaid).not.toContain('"with"');
+      expect(mermaid).toContain("'with'");
+    });
+  });
+
+  describe('toAscii', () => {
+    it('should generate ASCII representation', () => {
+      const test1: TestInfo = { id: 'test-1', title: 'Create User', file: 'test.spec.ts', dependencies: [] };
+      const test2: TestInfo = { id: 'test-2', title: 'Update User', file: 'test.spec.ts', dependencies: [] };
+
+      graph.addTest(test1);
+      graph.addTest(test2);
+      graph.addDependency('test-2', 'test-1');
+
+      const ascii = graph.toAscii();
+
+      expect(ascii).toContain('Create User');
+      expect(ascii).toContain('Update User');
+      expect(ascii).toContain('depends on');
+    });
+
+    it('should mark tests without dependencies differently', () => {
+      const test1: TestInfo = { id: 'test-1', title: 'Independent Test', file: 'test.spec.ts', dependencies: [] };
+      graph.addTest(test1);
+
+      const ascii = graph.toAscii();
+
+      expect(ascii).toContain('○');
+    });
+  });
 });

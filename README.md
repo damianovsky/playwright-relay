@@ -19,6 +19,7 @@
 - 🔄 **Auto-ordering** - Tests run in dependency order automatically
 - ⚡ **Cached Results** - Each test runs once, results are cached
 - 🎯 **Zero Config** - Works out of the box with Playwright
+- 📊 **Dependency Graph** - Visualize test dependencies with Mermaid diagrams
 
 ## Installation
 
@@ -95,6 +96,21 @@ interface Relay {
 | JSDoc comments | `/** @depends create user */` | ✅ Yes |
 | Playwright annotations | `test.info().annotations` | ✅ Yes |
 | `relay.require()` | `await relay.require('test')` | At runtime |
+
+## Dependency Graph
+
+Visualize your test dependencies:
+
+```bash
+# Mermaid diagram
+npx playwright-relay graph "tests/**/*.spec.ts"
+
+# ASCII diagram
+npx playwright-relay graph "tests/**/*.spec.ts" --format ascii
+
+# Interactive HTML
+npx playwright-relay graph "tests/**/*.spec.ts" --format html --output graph.html
+```
 
 ## Documentation
 
