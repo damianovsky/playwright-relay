@@ -14,6 +14,7 @@ import {
 } from './relay.js';
 import { parseDependsValue, parseTestFile } from './parser.js';
 import { resultStore } from './store.js';
+import { executeAllDependencies, clearModuleCache } from './executor.js';
 
 // Cache for parsed JSDoc dependencies per file
 const jsDocDepsCache = new Map<string, Map<string, DependencyDefinition[]>>();
@@ -86,14 +87,46 @@ export const test = base.extend<RelayFixtures>({
     const relay = createRelay(testInfo.file);
     const deps = extractDependencies(testInfo);
 
+    // Execute all dependencies before the test runs
+    // This handles the case when running with --grep and dependencies aren't scheduled
+    if (deps.length > 0 && testInfo.file) {
+      try {
+        await executeAllDependencies(deps, testInfo.file);
+      } catch (error) {
+        const { onDependencyFailure } = getRelayConfig();
+        if (onDependencyFailure === 'skip') {
+          testInfo.skip(true, `Dependency execution failed: ${(error as Error).message}`);
+          return;
+        }
+        throw error;
+      }
+    }
+
+    // Check if any dependency failed or is still pending
     for (const dep of deps) {
-      if (relay.status(dep.fullKey) === 'failed') {
+      const depStatus = relay.status(dep.fullKey);
+      
+      if (depStatus === 'failed') {
         const { onDependencyFailure } = getRelayConfig();
         if (onDependencyFailure === 'skip') {
           testInfo.skip(true, `Dependency "${dep.fullKey}" failed`);
           return;
         }
         throw new Error(`Dependency "${dep.fullKey}" failed`);
+      }
+      
+      if (depStatus === 'pending') {
+        const { onDependencyFailure } = getRelayConfig();
+        const errorMsg = `Dependency "${dep.fullKey}" was not executed. ` +
+          (dep.file 
+            ? `Cross-file dependencies require both files to be included in the same test run.`
+            : `Make sure the dependency test exists and runs before this test.`);
+        
+        if (onDependencyFailure === 'skip') {
+          testInfo.skip(true, errorMsg);
+          return;
+        }
+        throw new Error(errorMsg);
       }
     }
 
@@ -158,3 +191,6 @@ export function captureResult<T, F extends (...args: any[]) => Promise<T>>(
 export function clearJsDocCache(): void {
   jsDocDepsCache.clear();
 }
+
+/** Clear the module cache. Useful for testing. */
+export { clearModuleCache } from './executor.js';

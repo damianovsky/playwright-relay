@@ -7,7 +7,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { DependencyDefinition } from './types.js';
 
-const DEPENDS_REGEX = /@depends\s+(.+?)(?:\n|$)/g;
+// Match @depends only at start of line or after JSDoc asterisk/line comment (not in middle of text)
+// Supports: * @depends, // @depends, @depends at line start
+const DEPENDS_REGEX = /^\s*(?:\*|\/\/)?\s*@depends\s+(.+?)$/gm;
 const CROSS_FILE_REGEX = /^(.+\.spec\.[tj]s)\s*>\s*(.+)$/;
 const TEST_CALL_REGEX = /test\s*\(\s*(['"`])([^'"`]+)\1/g;
 
@@ -41,13 +43,47 @@ export function parseDependsAnnotations(comment: string): DependencyDefinition[]
 
 export function extractPrecedingComment(source: string, position: number): string | null {
   const before = source.substring(0, position);
-  const jsDocMatch = before.match(/\/\*\*[\s\S]*?\*\/\s*$/);
-  const lineMatch = before.match(/(?:\/\/[^\n]*\n)+\s*$/);
-
-  if (jsDocMatch && lineMatch) {
-    return jsDocMatch.index! > lineMatch.index! ? jsDocMatch[0] : lineMatch[0];
+  
+  // Find the LAST JSDoc comment before this position
+  // We need to find all JSDoc comments and get the last one that ends right before the test
+  const jsDocPattern = /\/\*\*[\s\S]*?\*\//g;
+  const lineCommentPattern = /(?:\/\/[^\n]*\n)+/g;
+  
+  let lastJsDoc: { match: string; endIndex: number } | null = null;
+  let lastLineComment: { match: string; endIndex: number } | null = null;
+  
+  // Find all JSDoc comments
+  let jsDocMatch: RegExpExecArray | null;
+  while ((jsDocMatch = jsDocPattern.exec(before)) !== null) {
+    lastJsDoc = { match: jsDocMatch[0], endIndex: jsDocMatch.index + jsDocMatch[0].length };
   }
-  return jsDocMatch?.[0] ?? lineMatch?.[0] ?? null;
+  
+  // Find all line comment blocks
+  let lineMatch: RegExpExecArray | null;
+  while ((lineMatch = lineCommentPattern.exec(before)) !== null) {
+    lastLineComment = { match: lineMatch[0], endIndex: lineMatch.index + lineMatch[0].length };
+  }
+  
+  // Check if the last comment is immediately before the test (only whitespace between)
+  const checkImmediatelyBefore = (comment: { match: string; endIndex: number } | null): string | null => {
+    if (!comment) return null;
+    const between = before.substring(comment.endIndex);
+    // Only whitespace should be between comment and test
+    if (/^\s*$/.test(between)) {
+      return comment.match;
+    }
+    return null;
+  };
+  
+  const jsDocResult = checkImmediatelyBefore(lastJsDoc);
+  const lineResult = checkImmediatelyBefore(lastLineComment);
+  
+  // Return the one that's closer to the test (higher endIndex)
+  if (jsDocResult && lineResult) {
+    return lastJsDoc!.endIndex > lastLineComment!.endIndex ? jsDocResult : lineResult;
+  }
+  
+  return jsDocResult ?? lineResult ?? null;
 }
 
 export function parseTestSource(source: string): Map<string, DependencyDefinition[]> {

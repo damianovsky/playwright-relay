@@ -26,6 +26,7 @@ export {
   captureResult,
   withRelay,
   clearJsDocCache,
+  clearModuleCache,
   RelayFixtures,
 } from './test.js';
 
@@ -53,6 +54,13 @@ export {
   generateTestKey,
   resolveFilePath,
 } from './parser.js';
+
+// Executor
+export {
+  executeDependency,
+  executeAllDependencies,
+  loadTestsFromFile,
+} from './executor.js';
 
 // Graph
 export {

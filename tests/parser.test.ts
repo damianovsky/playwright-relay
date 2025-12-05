@@ -162,6 +162,42 @@ test('should use account', async ({ relay }) => {});
       expect(deps.has('should use account')).toBe(true);
     });
 
+    it('should NOT accumulate dependencies from previous comments', () => {
+      const source = `
+/**
+ * First test - setup
+ * @depends setup > should create user
+ */
+test('first test', async ({ relay }) => {});
+
+/**
+ * Second test - no @depends in this comment
+ */
+test('second test', async ({ relay }) => {});
+
+/**
+ * Third test
+ * @depends first test
+ */
+test('third test', async ({ relay }) => {});
+`;
+      
+      const deps = parseTestSource(source);
+      
+      // first test should have its own dependency
+      expect(deps.has('first test')).toBe(true);
+      expect(deps.get('first test')).toHaveLength(1);
+      expect(deps.get('first test')![0].fullKey).toBe('setup > should create user');
+      
+      // second test should NOT have any dependencies (no @depends in its comment)
+      expect(deps.has('second test')).toBe(false);
+      
+      // third test should only have "first test", not the accumulated ones
+      expect(deps.has('third test')).toBe(true);
+      expect(deps.get('third test')).toHaveLength(1);
+      expect(deps.get('third test')![0].fullKey).toBe('first test');
+    });
+
     it('should handle different quote styles', () => {
       const source = `
 /**

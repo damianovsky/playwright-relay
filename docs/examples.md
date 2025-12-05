@@ -86,7 +86,7 @@ test('create order', async ({ relay, api }) => {
 
 ## Cross-File Dependencies
 
-Reference tests from other files.
+Reference tests from other files. Playwright-relay will automatically execute the dependency test if it hasn't run yet.
 
 ```typescript
 // tests/auth.spec.ts
