@@ -54,9 +54,19 @@ test('update account', async ({ relay, api }) => {
 
 ## How It Works
 
-1. **Test execution order** - Tests run in dependency order automatically
+1. **Automatic JSDoc parsing** - Dependencies are read from `@depends` comments automatically
 2. **Data caching** - Each test runs once, results are cached
 3. **Relay fixture** - Access cached data via the `relay` fixture
+
+### Dependency Sources
+
+playwright-relay reads dependencies from three sources (in order of priority):
+
+| Source | Example | Auto-detected |
+|--------|---------|---------------|
+| JSDoc comments | `/** @depends create user */` | ✅ Yes |
+| Playwright annotations | `test.info().annotations` | ✅ Yes |
+| `relay.require()` | `await relay.require('test')` | At runtime |
 
 ```
 ┌──────────────────┐

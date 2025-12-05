@@ -25,6 +25,7 @@ export {
   relayTest,
   captureResult,
   withRelay,
+  clearJsDocCache,
   RelayFixtures,
 } from './test.js';
 

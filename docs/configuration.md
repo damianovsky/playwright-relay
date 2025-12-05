@@ -108,10 +108,10 @@ test.describe.configure({ mode: 'serial' });
 
 ### 3. Explicit Dependencies
 
-Always declare dependencies explicitly:
+Always declare dependencies explicitly using one of these methods:
 
 ```typescript
-// ✓ Good - explicit dependency
+// ✓ Best - JSDoc comment (auto-parsed)
 /**
  * @depends create user
  */
@@ -119,7 +119,18 @@ test('update user', async ({ relay }) => {
   const user = relay.from('create user');
 });
 
-// ✗ Bad - implicit assumption
+// ✓ Good - Playwright annotation
+test('update user', async ({ relay }, testInfo) => {
+  testInfo.annotations.push({ type: 'depends', description: 'create user' });
+  const user = relay.from('create user');
+});
+
+// ✓ Good - relay.require() for dynamic dependencies
+test('update user', async ({ relay }) => {
+  const user = await relay.require('create user');
+});
+
+// ✗ Bad - implicit assumption (no dependency declared)
 test('update user', async ({ relay }) => {
   const user = relay.from('create user'); // May fail!
 });

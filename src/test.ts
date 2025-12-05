@@ -12,17 +12,53 @@ import {
   setRelayConfig,
   getRelayConfig,
 } from './relay.js';
-import { parseDependsValue } from './parser.js';
+import { parseDependsValue, parseTestFile } from './parser.js';
 import { resultStore } from './store.js';
+
+// Cache for parsed JSDoc dependencies per file
+const jsDocDepsCache = new Map<string, Map<string, DependencyDefinition[]>>();
+
+function getJsDocDependencies(filePath: string, testTitle: string): DependencyDefinition[] {
+  if (!filePath) return [];
+  
+  if (!jsDocDepsCache.has(filePath)) {
+    try {
+      const parsed = parseTestFile(filePath);
+      jsDocDepsCache.set(filePath, parsed);
+    } catch {
+      // If file cannot be parsed, cache empty map
+      jsDocDepsCache.set(filePath, new Map());
+    }
+  }
+  
+  return jsDocDepsCache.get(filePath)?.get(testTitle) ?? [];
+}
 
 export interface RelayFixtures {
   relay: Relay;
 }
 
 function extractDependencies(testInfo: PlaywrightTestInfo): DependencyDefinition[] {
-  return testInfo.annotations
+  // 1. Get dependencies from Playwright annotations
+  const annotationDeps = testInfo.annotations
     .filter(a => a.type === 'depends' && typeof a.description === 'string')
     .map(a => parseDependsValue(a.description as string));
+  
+  // 2. Get dependencies from JSDoc comments in source file
+  const jsDocDeps = getJsDocDependencies(testInfo.file, testInfo.title);
+  
+  // 3. Merge both sources, avoiding duplicates by fullKey
+  const seen = new Set<string>();
+  const allDeps: DependencyDefinition[] = [];
+  
+  for (const dep of [...annotationDeps, ...jsDocDeps]) {
+    if (!seen.has(dep.fullKey)) {
+      seen.add(dep.fullKey);
+      allDeps.push(dep);
+    }
+  }
+  
+  return allDeps;
 }
 
 function getTestKey(testInfo: PlaywrightTestInfo): string {
@@ -116,4 +152,9 @@ export function captureResult<T, F extends (...args: any[]) => Promise<T>>(
 
     return result;
   };
+}
+
+/** Clear the JSDoc dependencies cache. Useful for testing. */
+export function clearJsDocCache(): void {
+  jsDocDepsCache.clear();
 }

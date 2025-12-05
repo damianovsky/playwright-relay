@@ -15,6 +15,16 @@ Think of it like PHPUnit's `@depends` annotation, but for Playwright.
 - **Faster test runs** - No redundant setup operations
 - **Clear dependencies** - Explicit test relationships
 
+## How Dependencies Work
+
+playwright-relay automatically detects dependencies from **three sources**:
+
+1. **JSDoc comments** - `@depends` annotations (auto-parsed from source files)
+2. **Playwright annotations** - `test.info().annotations`
+3. **`relay.require()`** - Programmatic dependency execution
+
+JSDoc comments are the recommended way - they're parsed automatically at test startup.
+
 ## Quick Example
 
 ```typescript

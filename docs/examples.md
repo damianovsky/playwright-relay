@@ -158,6 +158,53 @@ test('add team member', async ({ relay, api }) => {
 
 ---
 
+## Three Ways to Declare Dependencies
+
+### 1. JSDoc Comments (Recommended)
+
+The simplest and most common approach. Dependencies are automatically detected:
+
+```typescript
+/**
+ * @depends create user
+ * @depends create product
+ */
+test('create order', async ({ relay }) => {
+  const user = relay.from('create user');
+  const product = relay.from('create product');
+});
+```
+
+### 2. Playwright Annotations
+
+Useful when you need to add dependencies programmatically:
+
+```typescript
+test('create order', async ({ relay }, testInfo) => {
+  testInfo.annotations.push(
+    { type: 'depends', description: 'create user' },
+    { type: 'depends', description: 'create product' }
+  );
+  
+  const user = relay.from('create user');
+  const product = relay.from('create product');
+});
+```
+
+### 3. relay.require() - Dynamic Dependencies
+
+Execute a dependency on-demand (useful for conditional logic):
+
+```typescript
+test('create order', async ({ relay }) => {
+  // Will execute 'create user' if not already run
+  const user = await relay.require('create user');
+  const product = await relay.require('create product');
+});
+```
+
+---
+
 ## Conditional Dependencies
 
 Use `hasRun` for optional dependencies.

@@ -141,6 +141,18 @@ export default defineConfig(withRelay({
 
 ---
 
+### `clearJsDocCache()`
+
+Clear the JSDoc dependencies cache. Useful for testing or when source files change.
+
+```typescript
+import { clearJsDocCache } from 'playwright-relay';
+
+clearJsDocCache();
+```
+
+---
+
 ### `relayTest(title, fn)`
 
 Alternative test wrapper with auto-storage.
