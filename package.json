@@ -1,6 +1,6 @@
 {
   "name": "playwright-relay",
-  "version": "1.0.1-beta.7",
+  "version": "1.0.0",
   "description": "Pass data between Playwright tests using @depends annotations",
   "type": "module",
   "main": "dist/index.cjs",
