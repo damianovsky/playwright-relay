@@ -30,8 +30,23 @@ function getTestKey(testInfo: PlaywrightTestInfo): string {
   return titlePath || testInfo.title;
 }
 
+function mapTestStatus(status: string | undefined): 'passed' | 'failed' | 'skipped' | 'pending' {
+  switch (status) {
+    case 'passed': return 'passed';
+    case 'failed': return 'failed';
+    case 'skipped': return 'skipped';
+    default: return 'pending';
+  }
+}
+
 export const test = base.extend<RelayFixtures>({
   relay: async ({}, use, testInfo) => {
+    const testKey = getTestKey(testInfo);
+    
+    // beforeEach: mark test as running
+    resultStore.set(testKey, 'running');
+    resultStore.set(testInfo.title, 'running');
+
     const relay = createRelay(testInfo.file);
     const deps = extractDependencies(testInfo);
 
@@ -47,6 +62,13 @@ export const test = base.extend<RelayFixtures>({
     }
 
     await use(relay);
+
+    // afterEach: store final status if not already set by relay.pass/fail
+    if (resultStore.getStatus(testKey) === 'running') {
+      const status = mapTestStatus(testInfo.status);
+      resultStore.set(testKey, status);
+      resultStore.set(testInfo.title, status);
+    }
   },
 });
 
@@ -95,22 +117,3 @@ export function captureResult<T, F extends (...args: any[]) => Promise<T>>(
     return result;
   };
 }
-
-test.beforeEach(async ({}, testInfo) => {
-  const testKey = getTestKey(testInfo);
-  resultStore.set(testKey, 'running');
-  resultStore.set(testInfo.title, 'running');
-});
-
-test.afterEach(async ({}, testInfo) => {
-  const testKey = getTestKey(testInfo);
-  const status =
-    testInfo.status === 'passed' ? 'passed' :
-    testInfo.status === 'failed' ? 'failed' :
-    testInfo.status === 'skipped' ? 'skipped' : 'pending';
-
-  if (resultStore.getStatus(testKey) === 'running') {
-    resultStore.set(testKey, status);
-    resultStore.set(testInfo.title, status);
-  }
-});
