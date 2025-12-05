@@ -24,11 +24,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm run test:run
-
       - name: Build
         run: npm run build
+
+      - name: Run tests
+        run: npm run test:run
 
       - name: Determine npm tag and release type
         id: release-info
