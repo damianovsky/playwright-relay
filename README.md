@@ -4,6 +4,7 @@
     Pass data between Playwright tests using <code>@depends</code> annotations
   </p>
   <p align="center">
+    <a href="https://github.com/damianovsky/playwright-relay/releases"><img src="https://img.shields.io/github/v/release/damianovsky/playwright-relay?include_prereleases" alt="GitHub release"></a>
     <a href="https://www.npmjs.com/package/playwright-relay"><img src="https://img.shields.io/npm/v/playwright-relay.svg" alt="npm version"></a>
     <a href="https://github.com/damianovsky/playwright-relay/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/playwright-relay.svg" alt="license"></a>
   </p>
