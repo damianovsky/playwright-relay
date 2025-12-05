@@ -28,16 +28,25 @@ npm install playwright-relay
 
 ## Quick Start
 
-```typescript
-import { test, expect, storeTestResult } from 'playwright-relay';
+### 1. Import from playwright-relay
 
-// Test that produces data
+```typescript
+// Replace your Playwright imports
+import { test, expect, storeTestResult } from 'playwright-relay';
+```
+
+### 2. Create a test that produces data
+
+```typescript
 test('create user', async ({ api }) => {
   const user = await api.createUser({ name: 'John' });
   storeTestResult('create user', 'passed', user);
 });
+```
 
-// Test that consumes data
+### 3. Create a dependent test
+
+```typescript
 /**
  * @depends create user
  */
@@ -47,10 +56,46 @@ test('update user', async ({ relay, api }) => {
 });
 ```
 
+## Configuration
+
+```typescript
+// playwright.config.ts
+import { defineConfig } from '@playwright/test';
+import { withRelay } from 'playwright-relay';
+
+export default defineConfig(withRelay({
+  testDir: './tests',
+  
+  relay: {
+    dependencyTimeout: 60000,    // Timeout for dependencies
+    onDependencyFailure: 'skip', // 'skip' or 'fail'
+    persistCache: false          // Cache between runs
+  }
+}));
+```
+
+## API Reference
+
+### `relay` Fixture
+
+```typescript
+interface Relay {
+  from<T>(testKey: string): T;           // Get data synchronously
+  require<T>(testKey: string): Promise<T>; // Get data, run if needed
+  hasRun(testKey: string): boolean;      // Check if test completed
+  status(testKey: string): TestStatus;   // Get test status
+  all(): Map<string, unknown>;           // Get all cached results
+}
+```
+
+### Dependency Sources
+
+| Source | Example | Auto-detected |
+|--------|---------|---------------|
+| JSDoc comments | `/** @depends create user */` | ✅ Yes |
+| Playwright annotations | `test.info().annotations` | ✅ Yes |
+| `relay.require()` | `await relay.require('test')` | At runtime |
+
 ## Documentation
 
-📖 **[Full Documentation](./docs/index.md)**
-
-## License
-
-MIT
+📖 **[Full Documentation](https://damianovsky.github.io/playwright-relay)**
