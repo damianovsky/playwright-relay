@@ -8,22 +8,13 @@ Pass data between Playwright tests using `@depends` annotations.
 
 Think of it like PHPUnit's `@depends` annotation, but for Playwright.
 
-## Why use it?
+## Features
 
-- **Reduce duplication** - Create a resource once, use it in multiple tests
-- **Better test organization** - Each test does one thing
-- **Faster test runs** - No redundant setup operations
-- **Clear dependencies** - Explicit test relationships
-
-## How Dependencies Work
-
-playwright-relay automatically detects dependencies from **three sources**:
-
-1. **JSDoc comments** - `@depends` annotations (auto-parsed from source files)
-2. **Playwright annotations** - `test.info().annotations`
-3. **`relay.require()`** - Programmatic dependency execution
-
-JSDoc comments are the recommended way - they're parsed automatically at test startup.
+- 🔗 **Test Dependencies** - Chain tests with `@depends` annotations
+- 📦 **Data Passing** - Return data from one test, use it in another
+- 🔄 **Auto-ordering** - Tests run in dependency order automatically
+- ⚡ **Cached Results** - Each test runs once, results are cached
+- 🎯 **Zero Config** - Works out of the box with Playwright
 
 ## Quick Example
 
@@ -54,6 +45,8 @@ npm install playwright-relay
 
 ## Next Steps
 
-- [Getting Started](getting-started.md) - Set up your first relay tests
-- [API Reference](api.md) - Full API documentation
-- [Examples](examples.md) - Real-world usage patterns
+- [Installation](getting-started/installation.md) - Requirements and setup
+- [Quick Start](getting-started/quick-start.md) - Get started in 5 minutes
+- [Configuration](configuration/options.md) - All configuration options
+- [API Reference](api/fixture.md) - Full API documentation
+- [Examples](examples/basic.md) - Real-world usage patterns

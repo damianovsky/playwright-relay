@@ -21,18 +21,25 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - content.code.copy
     - navigation.sections
     - navigation.expand
+    - content.code.copy
     - search.highlight
 
 nav:
   - Home: index.md
-  - Getting Started: getting-started.md
-  - Architecture: architecture.md
-  - API Reference: api.md
-  - Examples: examples.md
-  - Configuration: configuration.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quick-start.md
+  - Configuration:
+    - Options: configuration/options.md
+  - API Reference:
+    - relay Fixture: api/fixture.md
+    - Helper Functions: api/helpers.md
+    - Types: api/types.md
+  - Examples:
+    - Basic Patterns: examples/basic.md
+    - Advanced Patterns: examples/advanced.md
 
 markdown_extensions:
   - pymdownx.highlight:
