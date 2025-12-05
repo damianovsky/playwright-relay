@@ -93,7 +93,17 @@ function normalizeKey(key: string, currentFile?: string): string[] {
   return keys;
 }
 
-function findResult<T>(key: string, currentFile?: string): ResultLookup<T> {
+/**
+ * Find a result by key with fuzzy matching for cross-file dependencies.
+ * Supports finding tests with prefixes like [setup] when the @depends annotation
+ * doesn't include the prefix.
+ * 
+ * E.g., @depends setup.spec.ts > my test will match:
+ * - "setup.spec.ts > my test" (exact)
+ * - "setup.spec.ts > [setup] my test" (fuzzy - ends with test title)
+ */
+function findResultWithFuzzyMatch<T>(key: string, currentFile?: string): ResultLookup<T> {
+  // First try exact match with normalized keys
   for (const k of normalizeKey(key, currentFile)) {
     if (resultStore.has(k)) {
       return {
@@ -103,7 +113,38 @@ function findResult<T>(key: string, currentFile?: string): ResultLookup<T> {
       };
     }
   }
+  
+  // If no exact match and this is a cross-file dependency, try fuzzy matching
+  const { file, testTitle } = parseTestKey(key);
+  if (file && testTitle) {
+    // Look for keys that match the pattern: file > [anything] testTitle
+    // This handles cases like: "setup.spec.ts > [setup] my test" matching "setup.spec.ts > my test"
+    const allKeys = resultStore.keys();
+    for (const storedKey of allKeys) {
+      const parsed = parseTestKey(storedKey);
+      if (parsed.file === file && parsed.testTitle.endsWith(testTitle)) {
+        return {
+          found: true,
+          data: resultStore.getData<T>(storedKey),
+          status: resultStore.getStatus(storedKey),
+        };
+      }
+      // Also check if stored key without file prefix ends with test title
+      if (storedKey.includes(file) && storedKey.endsWith(testTitle)) {
+        return {
+          found: true,
+          data: resultStore.getData<T>(storedKey),
+          status: resultStore.getStatus(storedKey),
+        };
+      }
+    }
+  }
+  
   return { found: false, status: 'pending' };
+}
+
+function findResult<T>(key: string, currentFile?: string): ResultLookup<T> {
+  return findResultWithFuzzyMatch<T>(key, currentFile);
 }
 
 // Dependency execution

@@ -80,6 +80,13 @@ export const test = base.extend<RelayFixtures>({
   relay: async ({}, use, testInfo) => {
     const testKey = getTestKey(testInfo);
     
+    // Ensure cache is loaded when persistCache is enabled
+    // This is critical for cross-project dependencies in Playwright
+    const relayConfig = getRelayConfig();
+    if (relayConfig.persistCache && !resultStore.isInitialized()) {
+      resultStore.initialize({ persistCache: true, cacheFilePath: relayConfig.cacheFilePath });
+    }
+    
     // beforeEach: mark test as running
     resultStore.set(testKey, 'running');
     resultStore.set(testInfo.title, 'running');

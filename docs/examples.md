@@ -91,13 +91,32 @@ Reference tests from other files using the format: `filename.spec.ts > test name
 > **Important**: For cross-file dependencies to work:
 > 1. Both files must be included in the same test run
 > 2. Use the exact filename (not path): `auth.spec.ts`, not `tests/auth.spec.ts`
-> 3. Use the exact test title as written in the `test()` call
 
 ### Format
 
 ```
-@depends <filename.spec.ts> > <exact test title>
+@depends <filename.spec.ts> > <test title>
 ```
+
+### Fuzzy Matching
+
+The relay supports **fuzzy matching** for cross-file dependencies. If a test is stored with a prefix (like `[setup]`), you don't need to include the prefix in the `@depends` annotation:
+
+```typescript
+// setup.spec.ts - test stored with prefix
+test('[setup] create user', async ({ api }) => {
+  const user = await api.createUser();
+  storeTestResult('[setup] create user', 'passed', user);
+});
+
+// api.spec.ts - @depends without prefix works!
+/**
+ * @depends setup.spec.ts > create user
+ */
+test('update user', async ({ relay }) => {
+  // This finds "[setup] create user" automatically
+  const user = relay.from('setup.spec.ts > create user');
+});
 
 ### Example
 

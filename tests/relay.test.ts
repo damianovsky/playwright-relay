@@ -177,6 +177,43 @@ describe('Relay', () => {
       
       expect(result).toEqual(testData);
     });
+
+    it('should find test with prefix using fuzzy matching', () => {
+      const relay = createRelay('/path/to/api.spec.ts');
+      const testData = { id: 456 };
+      
+      // Store with prefix like [setup]
+      storeTestResult('setup.spec.ts > [setup] create user', 'passed', testData);
+      
+      // Should find without prefix
+      const result = relay.from<typeof testData>('setup.spec.ts > create user');
+      
+      expect(result).toEqual(testData);
+    });
+
+    it('should find test with bracket prefix anywhere in title', () => {
+      const relay = createRelay('/path/to/test.spec.ts');
+      const testData = { token: 'abc123' };
+      
+      // Store with [auth] prefix
+      storeTestResult('auth.spec.ts > [auth] should login with valid credentials', 'passed', testData);
+      
+      // Should find by matching the end of the title
+      const result = relay.from<typeof testData>('auth.spec.ts > should login with valid credentials');
+      
+      expect(result).toEqual(testData);
+    });
+
+    it('should still work with exact match when no prefix', () => {
+      const relay = createRelay('/path/to/test.spec.ts');
+      const testData = { value: 789 };
+      
+      storeTestResult('data.spec.ts > create item', 'passed', testData);
+      
+      const result = relay.from<typeof testData>('data.spec.ts > create item');
+      
+      expect(result).toEqual(testData);
+    });
   });
 
   describe('getTestResult', () => {
