@@ -6,8 +6,16 @@ import {
   registerTest,
   clearTestRegistry,
   setRelayConfig,
+  getTestResult,
+  getTestResultOrThrow,
+  initializeRelay,
+  validateDependencies,
+  validateDependenciesOrThrow,
 } from '../src/relay';
 import { resultStore } from '../src/store';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 describe('Relay', () => {
   beforeEach(() => {
@@ -168,6 +176,120 @@ describe('Relay', () => {
       const result = relay.from<typeof testData>('auth.spec.ts > should login');
       
       expect(result).toEqual(testData);
+    });
+  });
+
+  describe('getTestResult', () => {
+    it('should return typed data', () => {
+      interface User { id: string; name: string; }
+      storeTestResult<User>('create user', 'passed', { id: '1', name: 'John' });
+      
+      const user = getTestResult<User>('create user');
+      expect(user?.id).toBe('1');
+      expect(user?.name).toBe('John');
+    });
+
+    it('should return undefined for non-existing tests', () => {
+      expect(getTestResult('nonexistent')).toBeUndefined();
+    });
+  });
+
+  describe('getTestResultOrThrow', () => {
+    it('should return data for passed tests', () => {
+      storeTestResult('test', 'passed', { value: 42 });
+      expect(getTestResultOrThrow<{ value: number }>('test')).toEqual({ value: 42 });
+    });
+
+    it('should throw for non-existing tests', () => {
+      expect(() => getTestResultOrThrow('nonexistent')).toThrow();
+    });
+
+    it('should throw for failed tests', () => {
+      storeTestResult('failed', 'failed', undefined, new Error('Test failed'));
+      expect(() => getTestResultOrThrow('failed')).toThrow('failed');
+    });
+  });
+
+  describe('initializeRelay', () => {
+    it('should set config and initialize store when persistCache is true', () => {
+      initializeRelay({ persistCache: true });
+      expect(resultStore.isInitialized()).toBe(true);
+    });
+  });
+
+  describe('validateDependencies', () => {
+    const tempDir = os.tmpdir();
+    const testFile1 = path.join(tempDir, 'relay-test1.spec.ts');
+    const testFile2 = path.join(tempDir, 'relay-test2.spec.ts');
+
+    beforeEach(() => {
+      // Clean up temp files
+      try { fs.unlinkSync(testFile1); } catch { /* ignore */ }
+      try { fs.unlinkSync(testFile2); } catch { /* ignore */ }
+    });
+
+    it('should return valid for tests with valid dependencies', () => {
+      fs.writeFileSync(testFile1, `
+import { test } from 'playwright-relay';
+test('create user', async () => {});
+/**
+ * @depends create user
+ */
+test('update user', async () => {});
+      `);
+
+      const result = validateDependencies([testFile1]);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should return errors for missing cross-file dependencies', () => {
+      fs.writeFileSync(testFile1, `
+import { test } from 'playwright-relay';
+/**
+ * @depends missing-file.spec.ts > login
+ */
+test('update user', async () => {});
+      `);
+
+      const result = validateDependencies([testFile1]);
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors[0].dependency).toBe('missing-file.spec.ts > login');
+    });
+
+    it('should validate cross-file dependencies', () => {
+      fs.writeFileSync(testFile1, `
+import { test } from 'playwright-relay';
+test('login', async () => {});
+      `);
+      fs.writeFileSync(testFile2, `
+import { test } from 'playwright-relay';
+/**
+ * @depends relay-test1.spec.ts > login
+ */
+test('get profile', async () => {});
+      `);
+
+      const result = validateDependencies([testFile1, testFile2]);
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('validateDependenciesOrThrow', () => {
+    const tempDir = os.tmpdir();
+    const testFile = path.join(tempDir, 'relay-invalid.spec.ts');
+
+    it('should throw for missing cross-file dependencies', () => {
+      fs.writeFileSync(testFile, `
+import { test } from 'playwright-relay';
+/**
+ * @depends nonexistent.spec.ts > missing
+ */
+test('test', async () => {});
+      `);
+
+      expect(() => validateDependenciesOrThrow([testFile])).toThrow('Dependency validation failed');
     });
   });
 });

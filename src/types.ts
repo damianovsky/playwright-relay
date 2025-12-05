@@ -17,6 +17,44 @@ export interface TestResult<T = unknown> {
   timestamp: number;
 }
 
+/** Lifecycle hook function type */
+export type LifecycleHook = () => void | Promise<void>;
+
+/** Lifecycle hook with data */
+export type LifecycleHookWithData<T = unknown> = (data: T) => void | Promise<void>;
+
+/** Dependency validation result */
+export interface DependencyValidationResult {
+  valid: boolean;
+  errors: DependencyValidationError[];
+}
+
+/** Single dependency validation error */
+export interface DependencyValidationError {
+  testKey: string;
+  dependency: string;
+  message: string;
+  file?: string;
+}
+
+/** Lifecycle hooks configuration */
+export interface LifecycleHooks {
+  /** Called when the store is initialized/loaded */
+  onStoreInit?: LifecycleHook;
+  /** Called before a test runs */
+  onBeforeTest?: LifecycleHookWithData<{ testKey: string; dependencies: DependencyDefinition[] }>;
+  /** Called after a test completes */
+  onAfterTest?: LifecycleHookWithData<{ testKey: string; status: TestStatus; data?: unknown }>;
+  /** Called when a dependency is resolved */
+  onDependencyResolved?: LifecycleHookWithData<{ testKey: string; dependency: string; data?: unknown }>;
+  /** Called when a dependency fails */
+  onDependencyFailed?: LifecycleHookWithData<{ testKey: string; dependency: string; error: Error }>;
+  /** Called when cache is loaded from file */
+  onCacheLoaded?: LifecycleHookWithData<{ count: number }>;
+  /** Called when cache is saved to file */
+  onCacheSaved?: LifecycleHookWithData<{ count: number }>;
+}
+
 /** Configuration options for playwright-relay */
 export interface RelayConfig {
   /** Timeout for dependency tests (ms). Default: 60000 */
@@ -25,10 +63,19 @@ export interface RelayConfig {
   onDependencyFailure?: DependencyFailureAction;
   /** Cache results between runs. Default: false */
   persistCache?: boolean;
+  /** Path for the cache file. Default: playwright-relay-store.json in temp dir */
+  cacheFilePath?: string;
+  /** Validate dependencies before running tests. Default: false */
+  validateDependencies?: boolean;
+  /** Lifecycle hooks */
+  hooks?: LifecycleHooks;
 }
 
-/** Required version of RelayConfig with all fields */
-export type RequiredRelayConfig = Required<RelayConfig>;
+/** Required version of RelayConfig with all fields (except optional hooks) */
+export type RequiredRelayConfig = Required<Omit<RelayConfig, 'hooks' | 'cacheFilePath'>> & {
+  hooks?: LifecycleHooks;
+  cacheFilePath?: string;
+};
 
 /** Dependency definition from @depends annotation */
 export interface DependencyDefinition {

@@ -137,4 +137,74 @@ describe('ResultStore', () => {
       expect(keys.length).toBe(2);
     });
   });
+
+  describe('getDataOrThrow', () => {
+    it('should return data for passed tests', () => {
+      store.set('test-1', 'passed', { value: 42 });
+      expect(store.getDataOrThrow('test-1')).toEqual({ value: 42 });
+    });
+
+    it('should throw for non-existing results', () => {
+      expect(() => store.getDataOrThrow('test-1')).toThrow('No result found for "test-1"');
+    });
+
+    it('should throw for failed tests', () => {
+      store.set('test-1', 'failed', undefined, new Error('Test failed'));
+      expect(() => store.getDataOrThrow('test-1')).toThrow('failed');
+    });
+
+    it('should throw for pending tests', () => {
+      store.set('test-1', 'pending');
+      expect(() => store.getDataOrThrow('test-1')).toThrow('expected "passed"');
+    });
+  });
+
+  describe('getAllResults', () => {
+    it('should return all results with full metadata', () => {
+      store.set('test-1', 'passed', { a: 1 });
+      store.set('test-2', 'failed');
+      
+      const all = store.getAllResults();
+      expect(all.size).toBe(2);
+      expect(all.get('test-1')?.status).toBe('passed');
+      expect(all.get('test-1')?.data).toEqual({ a: 1 });
+      expect(all.get('test-2')?.status).toBe('failed');
+    });
+  });
+
+  describe('size', () => {
+    it('should return the count of stored results', () => {
+      expect(store.size()).toBe(0);
+      store.set('test-1', 'passed');
+      expect(store.size()).toBe(1);
+      store.set('test-2', 'passed');
+      expect(store.size()).toBe(2);
+    });
+  });
+
+  describe('initialize', () => {
+    it('should set initialized flag', () => {
+      expect(store.isInitialized()).toBe(false);
+      store.initialize({ persistCache: true });
+      expect(store.isInitialized()).toBe(true);
+    });
+
+    it('should call onStoreInit hook', () => {
+      let called = false;
+      store.initialize({
+        persistCache: true,
+        hooks: {
+          onStoreInit: () => { called = true; }
+        }
+      });
+      expect(called).toBe(true);
+    });
+  });
+
+  describe('initializeCache', () => {
+    it('should be an alias for initialize with persistCache true', () => {
+      store.initializeCache();
+      expect(store.isInitialized()).toBe(true);
+    });
+  });
 });

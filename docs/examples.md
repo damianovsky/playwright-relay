@@ -86,10 +86,25 @@ test('create order', async ({ relay, api }) => {
 
 ## Cross-File Dependencies
 
-Reference tests from other files. Playwright-relay will automatically execute the dependency test if it hasn't run yet.
+Reference tests from other files using the format: `filename.spec.ts > test name`
+
+> **Important**: For cross-file dependencies to work:
+> 1. Both files must be included in the same test run
+> 2. Use the exact filename (not path): `auth.spec.ts`, not `tests/auth.spec.ts`
+> 3. Use the exact test title as written in the `test()` call
+
+### Format
+
+```
+@depends <filename.spec.ts> > <exact test title>
+```
+
+### Example
 
 ```typescript
 // tests/auth.spec.ts
+import { test, storeTestResult } from 'playwright-relay';
+
 test('login', async ({ api }) => {
   const session = await api.post('/auth/login', {
     email: 'test@example.com',
@@ -102,10 +117,14 @@ test('login', async ({ api }) => {
 
 ```typescript
 // tests/profile.spec.ts
+import { test, expect } from 'playwright-relay';
+
 /**
+ * Cross-file dependency format: "filename.spec.ts > test name"
  * @depends auth.spec.ts > login
  */
 test('get profile', async ({ relay, api }) => {
+  // Use the same format to retrieve the data
   const session = relay.from('auth.spec.ts > login');
   
   const profile = await api.get('/profile', {
@@ -113,6 +132,39 @@ test('get profile', async ({ relay, api }) => {
   });
   
   expect(profile.email).toBe('test@example.com');
+});
+```
+
+### Common Mistakes
+
+```typescript
+// ❌ Wrong - using path instead of filename
+/** @depends tests/auth.spec.ts > login */
+
+// ❌ Wrong - missing filename for cross-file deps  
+/** @depends login */  // Only works for same-file dependencies
+
+// ❌ Wrong - wrong separator
+/** @depends auth.spec.ts: login */  // Use " > " not ":"
+
+// ✅ Correct
+/** @depends auth.spec.ts > login */
+```
+
+### Same-File Dependencies
+
+For dependencies within the same file, you can use just the test title:
+
+```typescript
+// tests/user.spec.ts
+
+test('create user', async () => {
+  // ...
+});
+
+/** @depends create user */  // No filename needed for same file
+test('update user', async ({ relay }) => {
+  const user = relay.from('create user');
 });
 ```
 

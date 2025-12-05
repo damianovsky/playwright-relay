@@ -16,6 +16,11 @@ export type {
   ResultLookup,
   RequiredRelayConfig,
   DependencyFailureAction,
+  LifecycleHooks,
+  LifecycleHook,
+  LifecycleHookWithData,
+  DependencyValidationResult,
+  DependencyValidationError,
 } from './types.js';
 
 // Test extension
@@ -35,6 +40,7 @@ export {
   createRelay,
   storeTestResult,
   getTestResult,
+  getTestResultOrThrow,
   clearResults,
   registerTest,
   unregisterTest,
@@ -42,6 +48,9 @@ export {
   clearTestRegistry,
   setRelayConfig,
   getRelayConfig,
+  initializeRelay,
+  validateDependencies,
+  validateDependenciesOrThrow,
 } from './relay.js';
 
 // Parser
@@ -72,3 +81,4 @@ export {
 
 // Store
 export { resultStore, ResultStore } from './store.js';
+export type { StoreInitOptions } from './store.js';

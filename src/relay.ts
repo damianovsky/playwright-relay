@@ -11,22 +11,46 @@ import type {
   RequiredRelayConfig,
   RegisteredTest,
   ResultLookup,
+  DependencyValidationResult,
+  DependencyValidationError,
 } from './types.js';
 import { resultStore } from './store.js';
-import { parseTestKey } from './parser.js';
+import { parseTestKey, parseTestFile } from './parser.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const DEFAULT_CONFIG: RequiredRelayConfig = {
   dependencyTimeout: 60000,
   onDependencyFailure: 'skip',
   persistCache: false,
+  validateDependencies: false,
 };
 
 let config: RequiredRelayConfig = { ...DEFAULT_CONFIG };
+let configInitialized = false;
 const testRegistry = new Map<string, RegisteredTest>();
 
 // Configuration
 export function setRelayConfig(newConfig: RelayConfig): void {
   config = { ...DEFAULT_CONFIG, ...newConfig };
+  
+  // Auto-initialize store when persistCache is enabled
+  if (config.persistCache && !configInitialized) {
+    resultStore.initialize({
+      persistCache: true,
+      cacheFilePath: config.cacheFilePath,
+      hooks: config.hooks,
+    });
+    configInitialized = true;
+  }
+}
+
+/**
+ * Initialize relay with config - recommended entry point.
+ * Automatically loads cache when persistCache is true.
+ */
+export function initializeRelay(newConfig: RelayConfig): void {
+  setRelayConfig(newConfig);
 }
 
 export function getRelayConfig(): RequiredRelayConfig {
@@ -229,12 +253,142 @@ export function storeTestResult<T>(
   error?: Error
 ): void {
   resultStore.set(key, status, data, error);
+  
+  // Call lifecycle hook
+  if (status === 'passed' || status === 'failed') {
+    config.hooks?.onAfterTest?.({ testKey: key, status, data });
+  }
 }
 
+/**
+ * Get test result data with type safety
+ */
 export function getTestResult<T>(key: string): T | undefined {
   return resultStore.getData<T>(key);
 }
 
+/**
+ * Get test result data or throw if not found/failed
+ */
+export function getTestResultOrThrow<T>(key: string): T {
+  return resultStore.getDataOrThrow<T>(key);
+}
+
 export function clearResults(): void {
   if (!config.persistCache) resultStore.clear();
+}
+
+/**
+ * Validate all dependencies in test files before running tests.
+ * Returns validation result with list of errors.
+ * 
+ * @param testFiles - Array of test file paths to validate
+ */
+export function validateDependencies(testFiles: string[]): DependencyValidationResult {
+  const errors: DependencyValidationError[] = [];
+  // Map from full key (file > title) to test info, to properly track cross-file deps
+  const allTests = new Map<string, { file: string; title: string }>();
+  // Also track just test titles within each file
+  const testsByFile = new Map<string, Set<string>>();
+  
+  // First pass: collect all test definitions
+  for (const filePath of testFiles) {
+    if (!fs.existsSync(filePath)) {
+      continue;
+    }
+    
+    try {
+      const fileName = path.basename(filePath);
+      const fileTests = new Set<string>();
+      
+      // Parse test titles from source
+      const content = fs.readFileSync(filePath, 'utf-8');
+      const testMatches = content.matchAll(/test\s*\(\s*['"`]([^'"`]+)['"`]/g);
+      for (const match of testMatches) {
+        const title = match[1];
+        fileTests.add(title);
+        allTests.set(`${fileName} > ${title}`, { file: filePath, title });
+      }
+      
+      testsByFile.set(fileName, fileTests);
+      testsByFile.set(filePath, fileTests);
+    } catch {
+      // Skip files that can't be parsed
+    }
+  }
+  
+  // Second pass: validate dependencies
+  for (const filePath of testFiles) {
+    if (!fs.existsSync(filePath)) {
+      continue;
+    }
+    
+    try {
+      const deps = parseTestFile(filePath);
+      const fileName = path.basename(filePath);
+      const currentFileTests = testsByFile.get(fileName) ?? new Set();
+      
+      for (const [testTitle, dependencies] of deps) {
+        const testKey = `${fileName} > ${testTitle}`;
+        
+        for (const dep of dependencies) {
+          let depExists = false;
+          
+          if (dep.file) {
+            // Cross-file dependency - must check the specific file
+            const depFileTests = testsByFile.get(dep.file);
+            depExists = depFileTests?.has(dep.testTitle) ?? false;
+            
+            // Also check by full key
+            if (!depExists) {
+              depExists = allTests.has(`${dep.file} > ${dep.testTitle}`);
+            }
+          } else {
+            // Same-file dependency - check within current file only
+            depExists = currentFileTests.has(dep.testTitle);
+          }
+          
+          if (!depExists) {
+            errors.push({
+              testKey,
+              dependency: dep.fullKey,
+              file: filePath,
+              message: `Dependency "${dep.fullKey}" not found. ` +
+                (dep.file 
+                  ? `Cross-file dependency format: "${dep.file} > ${dep.testTitle}". Make sure the file "${dep.file}" is included in the test run and contains the test.`
+                  : `Make sure the test "${dep.testTitle}" exists in the same file or use cross-file format: "filename.spec.ts > test name".`),
+            });
+          }
+        }
+      }
+    } catch {
+      // Skip files that can't be parsed
+    }
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+/**
+ * Validate dependencies and throw if any are invalid.
+ * Call this before running tests if you want early validation.
+ * 
+ * @param testFiles - Array of test file paths to validate
+ */
+export function validateDependenciesOrThrow(testFiles: string[]): void {
+  const result = validateDependencies(testFiles);
+  
+  if (!result.valid) {
+    const errorMessages = result.errors
+      .map(e => `  - ${e.testKey}: ${e.message}`)
+      .join('\n');
+    
+    throw new Error(
+      `Dependency validation failed:\n${errorMessages}\n\n` +
+      `Tip: For cross-file dependencies, use format: "@depends otherfile.spec.ts > test name"`
+    );
+  }
 }
